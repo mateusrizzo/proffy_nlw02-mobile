@@ -1,18 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {View, ScrollView, Text} from 'react-native';
 import {Feather} from '@expo/vector-icons';
 import { TextInput, BorderlessButton, RectButton } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-community/async-storage'
+import api from '../../../services/api';
 
 import styles from './styles';
 import PageHeader from '../../components/PageHeader';
-import TeacherItem from '../../components/TeacherItem';
+import TeacherItem, { Teacher } from '../../components/TeacherItem';
+
 
 
 
 function TeacherList() {
     const [isFiltersVisible, setIsFilterVisible] = useState(false);
+    const [favorites, setFavorites] = useState<number[]>([]);
+    const [teachers, setTeachers] = useState([]);
+    const [subject, setSubject] = useState('');
+    const [week_day, setWeekDay] = useState('');
+    const [time, setTime] = useState('');
+
+    useEffect(() =>{
+        AsyncStorage.getItem('favorites').then(response => {
+            if(response) {
+                const favoritedTeachers = JSON.parse(response);
+                const favoritedTeachersIds = favoritedTeachers.map((teacher: Teacher) => {
+                    return teacher.id;
+                })
+                setFavorites(favoritedTeachersIds);
+            }
+        });
+    }, [])
+
     function handleToggleFilterVisible() {
         setIsFilterVisible(!isFiltersVisible);
+    }
+
+    async function handleFiltersSubmit() {
+        const response = await api.get('/classes', {
+            params: {
+                subject,
+                week_day,
+                time,
+            }
+        });
+        setIsFilterVisible(false);
+        setTeachers(response.data);
     }
     return ( 
         <View style={styles.container}>
@@ -26,20 +59,38 @@ function TeacherList() {
                 {isFiltersVisible && (
                     <View style={styles.searchForm}>
                         <Text style={styles.label}>Matéria</Text>
-                        <TextInput style={styles.input} placeholder='Qual a matéria?' placeholderTextColor='#c1bccc'/>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder='Qual a matéria?' 
+                            placeholderTextColor='#c1bccc' 
+                            value={subject} 
+                            onChangeText={text => setSubject(text)}
+                        />
 
                         <View style={styles.inputGroup}>
                             <View style={styles.inputBlock}>
                                 <Text style={styles.label}>Dia da semana</Text>
-                                <TextInput style={styles.input} placeholder='Qual o dia?' placeholderTextColor='#c1bccc'/>
+                                <TextInput 
+                                    style={styles.input} 
+                                    placeholder='Qual o dia?' 
+                                    placeholderTextColor='#c1bccc'
+                                    value={week_day} 
+                                    onChangeText={text => setWeekDay(text)}
+                                />
                             </View>
                             <View style={styles.inputBlock}>
                                 <Text style={styles.label}>Horário</Text>
-                                <TextInput style={styles.input} placeholder='Qual o horário?' placeholderTextColor='#c1bccc'/>
+                                <TextInput 
+                                    style={styles.input} 
+                                    placeholder='Qual o horário?' 
+                                    placeholderTextColor='#c1bccc'
+                                    value={time} 
+                                    onChangeText={text => setTime(text)}
+                                    />
                             </View>
                         </View>
 
-                        <RectButton style={styles.submitButton}>
+                        <RectButton style={styles.submitButton} onPress={handleFiltersSubmit}>
                              <Text style={styles.submitButtonText}>Buscar</Text>
                         </RectButton>
                     </View>
@@ -53,13 +104,14 @@ function TeacherList() {
                     paddingBottom: 16,
                 }}
                 >
-                <TeacherItem/>
-                <TeacherItem/>
-                <TeacherItem/>
-                <TeacherItem/>
-                <TeacherItem/>
-                <TeacherItem/>
-                <TeacherItem/>
+                    {teachers.map ((teacher: Teacher) => {
+                        return( 
+                        <TeacherItem 
+                            key={teacher.id} 
+                            teacher={teacher}
+                            favorited={favorites.includes(teacher.id)}
+                        />)
+                     })}
             </ScrollView>
         </View>
     );
